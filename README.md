@@ -1,0 +1,1 @@
+# SBOAddonTemplate
