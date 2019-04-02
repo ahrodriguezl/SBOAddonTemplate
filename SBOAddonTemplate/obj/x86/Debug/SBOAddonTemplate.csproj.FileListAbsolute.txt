@@ -1,0 +1,5 @@
+C:\Avantis\Proyectos\SBOAddonTemplate\SBOAddonTemplate\obj\x86\Debug\SBOAddonTemplate.csprojResolveAssemblyReference.cache
+C:\Avantis\Proyectos\SBOAddonTemplate\SBOAddonTemplate\bin\x86\Debug\SBOAddonTemplate.exe
+C:\Avantis\Proyectos\SBOAddonTemplate\SBOAddonTemplate\bin\x86\Debug\SBOAddonTemplate.pdb
+C:\Avantis\Proyectos\SBOAddonTemplate\SBOAddonTemplate\obj\x86\Debug\SBOAddonTemplate.exe
+C:\Avantis\Proyectos\SBOAddonTemplate\SBOAddonTemplate\obj\x86\Debug\SBOAddonTemplate.pdb
