@@ -152,6 +152,17 @@ namespace Avantis.ORM
     }
 
     [AttributeUsage(AttributeTargets.Property)]
+    public class DefaultValueAttribute : Attribute
+    {
+        public string Code { get; set; }
+
+        public DefaultValueAttribute(string code)
+        {
+            this.Code = code;
+        }
+    }
+
+    [AttributeUsage(AttributeTargets.Property)]
     public class MandatoryAttribute : Attribute
     {
     }
@@ -207,7 +218,7 @@ namespace Avantis.ORM
         {
             this.Type = Ty;
             this.Table = new SBOTable(Ty);
-            this.Name = Table.TableSource == BoTableSource.btt_UDT ? "@" + Table.Name : Table.Name;
+            this.Name = Table.Name;
         }
     }
 

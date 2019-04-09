@@ -239,6 +239,9 @@ namespace Avantis.ORM
             public SAPbobsCOM.BoFldSubTypes SubType { get; private set; }
             public int EditSize { get; private set; }
 
+            public string DefaultValue { get; private set; }
+            public Dictionary<string, string> ValidValues { get; private set; }
+
             public string[] Indexes { get; private set; }
 
             public SAPbobsCOM.BoYesNoEnum Mandatory { get; private set; }
@@ -264,6 +267,8 @@ namespace Avantis.ORM
                 var linkedUdoAttr = (LinkedUDOAttribute)Orm.GetCustomAttribute<LinkedUDOAttribute>(propertyInfo);
                 var linkedSysObjAttr = (LinkedSystemObjectAttribute)Orm.GetCustomAttribute<LinkedSystemObjectAttribute>(propertyInfo);
                 var indexListAttr = Orm.GetAllCustomAttributes<UsedIndexAttribute>(propertyInfo);
+                var validValuesAttrs = Orm.GetAllCustomAttributes<ValidValueAttribute>(propertyInfo);
+                var defaultValueAttr = (DefaultValueAttribute)Orm.GetCustomAttribute<DefaultValueAttribute>(propertyInfo);
 
                 if (linkedTableAttr != null)
                     this.LinkedTable = linkedTableAttr.Name;
@@ -289,6 +294,17 @@ namespace Avantis.ORM
                     this.EditSize = editSizeAttr != null ? editSizeAttr.Value : 8;
                     this.Mandatory = mandatoryAttr != null ? SAPbobsCOM.BoYesNoEnum.tYES : SAPbobsCOM.BoYesNoEnum.tNO;
                     this.CanFind = canFindAttr != null ? canFindAttr.Value : false;
+                }
+
+                this.DefaultValue = defaultValueAttr != null ? defaultValueAttr.Code : string.Empty;
+                ValidValues = new Dictionary<string, string>();
+
+                foreach (var attr in validValuesAttrs)
+                {
+                    string value = string.Empty;
+
+                    if (!ValidValues.TryGetValue(attr.Code, out value))
+                        ValidValues.Add(attr.Code, attr.Name);
                 }
 
                 var indexes = new List<string>();
@@ -414,8 +430,6 @@ namespace Avantis.ORM
             return list.ToArray();
         }
 
-
-
         private void SetUserKey(string TableName, string KeyName, string[] Fields, bool IsUnique = false)
         {
             int lRetCode = 0;
@@ -467,8 +481,6 @@ namespace Avantis.ORM
             return id;
         }
 
-
-
         private int GetFieldID(string TableName, string AliasID)
         {
             string sQuery = SBODbHelper.GetFieldIdSQL(TableName, AliasID);
@@ -488,8 +500,6 @@ namespace Avantis.ORM
 
             return id;
         }
-
-
 
         private SAPbobsCOM.BoFieldTypes GetFieldType(string Value)
         {
@@ -642,7 +652,7 @@ namespace Avantis.ORM
 
                     string message = string.Format("Tabla[{0}]: Campos de usuario eliminados correctamente.", tableMapped.Name);
 
-                     Application.SBO_Application.StatusBar.SetText(message, SAPbouiCOM.BoMessageTime.bmt_Short, SAPbouiCOM.BoStatusBarMessageType.smt_Success);
+                    Application.SBO_Application.StatusBar.SetText(message, SAPbouiCOM.BoMessageTime.bmt_Short, SAPbouiCOM.BoStatusBarMessageType.smt_Success);
 
                     Marshal.ReleaseComObject(oUserFieldsMD);
                     GC.Collect();
@@ -707,6 +717,27 @@ namespace Avantis.ORM
                 oUserFieldsMD.Type = field.Type;
                 oUserFieldsMD.SubType = field.SubType;
                 oUserFieldsMD.Mandatory = field.Mandatory;
+                oUserFieldsMD.DefaultValue = field.DefaultValue;
+
+                if (field.ValidValues.Count != 0)
+                {
+                    bool first = true;
+
+                    var list = field.ValidValues.Keys.ToList();
+                    list.Sort();
+
+                    foreach (var element in list)
+                    {
+                        if (first != true)
+                            oUserFieldsMD.ValidValues.Add();
+
+                        oUserFieldsMD.ValidValues.Value = element;
+                        oUserFieldsMD.ValidValues.Description = field.ValidValues[element];
+
+                        if (first == true)
+                            first = false;
+                    }
+                }
 
                 if ((field.Type == SAPbobsCOM.BoFieldTypes.db_Numeric || field.Type == SAPbobsCOM.BoFieldTypes.db_Alpha) &&
                     field.SubType == SAPbobsCOM.BoFldSubTypes.st_None)
@@ -743,6 +774,40 @@ namespace Avantis.ORM
                 oUserFieldsMD = (SAPbobsCOM.UserFieldsMD)oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oUserFields);
                 oUserFieldsMD.GetByKey(tableName, GetFieldID(tableName, aliasID));
                 oUserFieldsMD.Description = field.Description;
+                oUserFieldsMD.DefaultValue = field.DefaultValue;
+
+                bool first = true;
+
+                var listValues = field.ValidValues.Keys.ToList();
+                listValues.Sort();
+
+                foreach (var value in listValues)
+                {
+                    bool exist = false;
+
+                    var list = oUserFieldsMD.ValidValues;
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        list.SetCurrentLine(i);
+                        if (list.Value == value)
+                        {
+                            exist = true;
+                            list.Description = field.ValidValues[value];
+                            break;
+                        }
+                    }
+
+                    if (!exist)
+                    {
+                        if (list.Count != 0 && first == false)
+                            list.Add();
+
+                        list.Value = value;
+                        list.Description = field.ValidValues[value];
+                    }
+
+                    first = false;
+                }
 
                 if ((field.Type == SAPbobsCOM.BoFieldTypes.db_Numeric || field.Type == SAPbobsCOM.BoFieldTypes.db_Alpha) &&
                     field.SubType == SAPbobsCOM.BoFldSubTypes.st_None)
@@ -824,7 +889,7 @@ namespace Avantis.ORM
             }
 
             string status = result == BoCreateTableResult.boctr_Created ? "creada" : "actualizada";
-            string message = string.Format("Tabla[{0}] - {1}: Tabla {2} correctamente.", tableMapped.Name, tableMapped.Description, status);
+            string message = string.Format("Tabla[{0}]: Tabla {1} correctamente.", tableMapped.Name, status);
 
             Application.SBO_Application.StatusBar.SetText(message, SAPbouiCOM.BoMessageTime.bmt_Short, SAPbouiCOM.BoStatusBarMessageType.smt_Success);
 
@@ -930,13 +995,31 @@ namespace Avantis.ORM
                 first = true;
                 if (tableMapped.CanFind == SAPbobsCOM.BoYesNoEnum.tYES)
                 {
+                    oUserObjectMD.FindColumns.ColumnAlias = "DocEntry";
+                    oUserObjectMD.FindColumns.ColumnDescription = "No. Interno";
+
+                    if (tableMapped.UDOObjType == 1)
+                    {
+                        oUserObjectMD.FindColumns.Add();
+                        oUserObjectMD.FindColumns.ColumnAlias = "Code";
+                        oUserObjectMD.FindColumns.ColumnDescription = "Código";
+
+                        oUserObjectMD.FindColumns.Add();
+                        oUserObjectMD.FindColumns.ColumnAlias = "Name";
+                        oUserObjectMD.FindColumns.ColumnDescription = "Nombre";
+                    }
+                    if (tableMapped.UDOObjType == 3)
+                    {
+                        oUserObjectMD.FindColumns.Add();
+                        oUserObjectMD.FindColumns.ColumnAlias = "DocNum";
+                        oUserObjectMD.FindColumns.ColumnDescription = "No. de Documento";
+                    }
+
                     foreach (var field in tableMapped.Fields)
                     {
                         if (field.CanFind)
                         {
-                            if (first) { first = false; }
-                            else { oUserObjectMD.FindColumns.Add(); }
-
+                            oUserObjectMD.FindColumns.Add();
                             oUserObjectMD.FindColumns.ColumnAlias = "U_" + field.AliasID;
                             oUserObjectMD.FindColumns.ColumnDescription = field.Description;
                         }

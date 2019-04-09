@@ -25,7 +25,7 @@
     abstract class DocumentDataType : ObjectType
     {
         [Ignore]
-        public string DocumentNumber { get; set; }
+        abstract public string DocumentNumber { get; set; }
     }
 
     [TableType((int)SAPbobsCOM.BoUTBTableType.bott_DocumentLines)]
@@ -47,7 +47,7 @@
     abstract class NoObjectAutoIncrementType
     {
         [Ignore]
-        abstract public string Code { get; set; }
+        abstract public int Code { get; set; }
 
         [Ignore]
         abstract public string Name { get; set; }
